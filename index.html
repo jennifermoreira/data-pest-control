@@ -469,7 +469,7 @@ body{
 
 <!-- TOP BAR -->
 <div class="top-bar">
-  <div class="brand">Data <span>Pest Control</span> 🐛</div>
+  <div class="brand" id="brandTap">Data <span>Pest Control</span> 🐛</div>
   <div class="admin-hint">by IBM</div>
 </div>
 
@@ -750,6 +750,15 @@ document.querySelectorAll('.time-opt').forEach(btn =>
 document.getElementById('adminPwd').addEventListener('keydown', e => { if(e.key==='Enter') adminLogin(); });
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.shiftKey && e.key === 'Z') openAdmin();
+});
+
+// ── BRAND TAP (mobile admin) ─────────────────────────────
+let _brandTaps = 0, _brandTapTimer = null;
+document.getElementById('brandTap').addEventListener('click', () => {
+  _brandTaps++;
+  clearTimeout(_brandTapTimer);
+  if (_brandTaps >= 5) { _brandTaps = 0; openAdmin(); return; }
+  _brandTapTimer = setTimeout(() => { _brandTaps = 0; }, 1500);
 });
 
 // ── NAME MODAL ───────────────────────────────────────────
