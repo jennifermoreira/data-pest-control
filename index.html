@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Data Pest Control – IBM Booth Game</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0f1e;
+  --surface:#0f1a2e;
+  --surface2:#172236;
+  --surface3:#1e2d46;
+  --border:#1e3358;
+  --border2:#2a4a7f;
+  --text:#dce8ff;
+  --muted:#5a7aa8;
+  --accent:#0f62fe;
+  --accent2:#4589ff;
+  --accent3:#78a9ff;
+  --gold:#f1c21b;
+  --silver:#c1c7cd;
+  --bronze:#ba4e00;
+  --green:#24a148;
+  --red:#da1e28;
+  --radius:12px;
+}
+
+html{ height:100%; }
+body{
+  min-height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+}
+
+/* ── TOP BAR ── */
+.top-bar{
+  height:52px;
+  background:rgba(10,15,30,0.98);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+}
+.top-bar .brand{ font-size:15px;font-weight:700;color:#fff;letter-spacing:-.3px; }
+.top-bar .brand span{ color:var(--accent2); }
+.top-bar .admin-hint{ font-size:11px;color:var(--border2);cursor:default; }
+
+/* ── SCREENS ── */
+.screen{
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:calc(100vh - 52px);
+  padding:32px 20px;
+  gap:24px;
+  text-align:center;
+}
+.screen.active{ display:flex; }
+
+/* Bug screen fills viewport exactly — no scroll */
+#bugScreen{
+  padding:12px 16px;
+  gap:10px;
+  justify-content:center;
+  height:calc(100vh - 52px - 56px); /* viewport minus top-bar minus hud */
+  min-height:unset;
+  overflow:hidden;
+  box-sizing:border-box;
+}
+
+/* ── GAME HUD ── */
+.game-hud{
+  display:none;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 28px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  gap:16px;
+}
+.game-hud.visible{ display:flex; }
+.hud-stat{ text-align:center; }
+.hud-stat .sv{ font-size:22px;font-weight:900;color:#fff;line-height:1;font-variant-numeric:tabular-nums; }
+.hud-stat .sl{ font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-top:2px; }
+.timer-bar-wrap{ flex:1;max-width:360px;height:8px;background:var(--border);border-radius:4px;overflow:hidden; }
+.timer-bar-fill{ height:100%;border-radius:4px;background:var(--accent);transition:width 1s linear,background .3s; }
+
+/* ═══════════════════════════════════════
+   HOME SCREEN — two-column layout
+═══════════════════════════════════════ */
+#homeScreen{
+  flex-direction:row;
+  align-items:stretch;
+  justify-content:center;
+  gap:0;
+  padding:0;
+  text-align:left;
+}
+
+.home-left{
+  flex:1;
+  max-width:560px;
+  padding:48px 44px;
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+  justify-content:center;
+  border-right:1px solid var(--border);
+}
+
+.home-eyebrow{
+  font-size:11px;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;color:var(--accent2);
+}
+
+.home-title{
+  font-size:46px;font-weight:900;letter-spacing:-1.5px;
+  color:#fff;line-height:1.05;
+}
+.home-title span{ color:var(--accent2); }
+
+.scenario-box{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-left:4px solid var(--accent);
+  border-radius:8px;
+  padding:18px 20px;
+}
+.scenario-box p{
+  font-size:14px;line-height:1.7;color:var(--text);
+}
+.scenario-box p strong{ color:#fff; }
+
+.objective-list{
+  list-style:none;
+  display:flex;flex-direction:column;gap:10px;
+}
+.objective-list li{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:13px;color:var(--text);line-height:1.5;
+}
+.objective-list li .ol-icon{
+  font-size:16px;flex-shrink:0;margin-top:1px;
+}
+
+/* ── BUG LEGEND ── */
+.bug-legend{
+  display:flex;flex-direction:column;gap:12px;
+}
+.bl-section{
+  display:flex;flex-direction:column;gap:8px;
+}
+.bl-heading{
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.7px;color:var(--muted);
+  display:flex;align-items:center;gap:6px;
+}
+.bl-penalty{
+  font-size:10px;font-weight:700;
+  background:rgba(218,30,40,.15);
+  border:1px solid rgba(218,30,40,.4);
+  color:#ff8389;border-radius:4px;
+  padding:1px 6px;letter-spacing:.3px;
+}
+.bl-row{
+  display:flex;gap:8px;flex-wrap:wrap;
+}
+.bl-item{
+  display:flex;align-items:center;gap:7px;
+  padding:8px 14px;border-radius:8px;
+  border:1.5px solid var(--border);
+  background:var(--surface2);
+}
+.bl-item.good{ border-color:rgba(36,161,72,.45);background:rgba(36,161,72,.08); }
+.bl-item.bad { border-color:rgba(218,30,40,.35);background:rgba(218,30,40,.07); }
+.bl-emoji{ font-size:22px;line-height:1; }
+.bl-label{ font-size:12px;font-weight:700;color:var(--text); }
+
+.survey-notice{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(15,98,254,.12);
+  border:1px solid rgba(15,98,254,.35);
+  border-radius:8px;
+  padding:12px 16px;
+  font-size:13px;font-weight:600;color:#fff;line-height:1.5;
+}
+.gift-badge{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(241,194,27,.08);
+  border:1px solid rgba(241,194,27,.3);
+  border-radius:10px;
+  padding:14px 18px;
+}
+.gift-badge .gb-icon{ font-size:28px;flex-shrink:0; }
+.gift-badge .gb-text{ font-size:13px;line-height:1.5;color:var(--text); }
+.gift-badge .gb-text strong{ color:var(--gold); }
+
+.home-cta-btn{
+  padding:16px 36px;
+  background:var(--accent);
+  border:none;border-radius:10px;
+  color:#fff;font-size:16px;font-weight:800;
+  cursor:pointer;letter-spacing:.3px;
+  transition:background .18s,transform .1s;
+  align-self:flex-start;
+}
+.home-cta-btn:hover{ background:#0353e9; }
+.home-cta-btn:active{ transform:scale(.97); }
+
+/* Right panel — live leaderboard */
+.home-right{
+  width:340px;
+  flex-shrink:0;
+  padding:36px 28px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  background:var(--surface);
+}
+.lb-panel-title{
+  font-size:13px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1px;color:#fff;
+  display:flex;align-items:center;gap:8px;
+}
+.lb-panel-title .lp-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--green);
+  animation:pulse 1.5s infinite;
+}
+@keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+.lb-live-list{ display:flex;flex-direction:column;gap:8px; }
+
+.lb-live-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;
+  border-radius:8px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  transition:background .2s;
+}
+.lb-live-row.rank-1{ border-color:rgba(241,194,27,.5);background:rgba(241,194,27,.07); }
+.lb-live-row.rank-2{ border-color:rgba(193,199,205,.35); }
+.lb-live-row.rank-3{ border-color:rgba(186,78,0,.4); }
+
+.lb-live-row .lbr-rank{
+  font-size:12px;font-weight:800;width:34px;text-align:center;flex-shrink:0;color:var(--muted);
+}
+.lb-live-row .lbr-rank svg{ display:block;margin:0 auto; }
+.lb-live-row .lbr-name{
+  flex:1;font-size:13px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lb-live-row .lbr-score{
+  font-size:15px;font-weight:900;color:var(--accent2);
+  font-variant-numeric:tabular-nums;
+}
+
+.lb-empty-msg{
+  font-size:13px;color:var(--muted);text-align:center;
+  padding:24px 0;line-height:1.6;
+}
+
+.lb-footer{
+  font-size:11px;color:var(--muted);text-align:center;
+  margin-top:auto;line-height:1.5;
+}
+
+/* ── SURVEY MODAL ── */
+#nameOverlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.75);
+  display:none;align-items:center;justify-content:center;
+  z-index:600;
+  backdrop-filter:blur(4px);
+}
+#nameOverlay.open{ display:flex; }
+.survey-modal{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:var(--radius);
+  padding:36px 32px;
+  width:460px;max-width:95vw;
+  max-height:90vh;
+  overflow-y:auto;
+}
+.survey-modal h2{
+  font-size:20px;font-weight:800;color:#fff;margin-bottom:4px;
+}
+.survey-modal .sv-sub{
+  font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.5;
+}
+.sv-field{
+  margin-bottom:16px;
+}
+.sv-field label{
+  display:block;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;
+  color:var(--muted);margin-bottom:7px;
+}
+.sv-field label .req{ color:var(--accent2); }
+.sv-field input,.sv-field select{
+  width:100%;padding:10px 14px;
+  background:var(--bg);
+  border:1.5px solid var(--border2);
+  border-radius:8px;color:#fff;font-size:14px;
+  outline:none;transition:border-color .2s;
+}
+.sv-field input:focus,.sv-field select:focus{ border-color:var(--accent); }
+.sv-field input::placeholder{ color:var(--muted); }
+.sv-field select option{ background:var(--surface2); }
+.sv-err{
+  font-size:11px;color:#ff8389;margin-top:4px;display:none;
+}
+.sv-consent{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:12px;color:var(--muted);
+  margin:16px 0 24px;line-height:1.5;
+}
+.sv-consent input[type=checkbox]{
+  width:16px;height:16px;margin-top:2px;
+  accent-color:var(--accent);flex-shrink:0;
+}
+.sv-btns{ display:flex;gap:10px; }
+
+/* ── WHACK-A-BUG SCREEN ── */
+#bugScreen{ gap:14px; }
+.bug-label{
+  font-size:13px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--muted);
+}
+.bug-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:8px;
+  /* size to fill remaining height without scrolling */
+  width:min(560px,90vw);
+  max-width:500px;
+  flex-shrink:0;
+}
+.bug-cell{
+  aspect-ratio:1;
+  background:var(--surface2);
+  border:1.5px solid var(--border);
+  border-radius:10px;
+  position:relative;overflow:hidden;
+  cursor:pointer;
+  transition:background .1s;
+  display:flex;align-items:center;justify-content:center;
+}
+.bug-cell:hover{ background:var(--surface3); }
+.bug-cell .bug-sprite{
+  font-size:32px;line-height:1;
+  position:absolute;
+  pointer-events:none;
+  animation:bugPop .2s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes bugPop{ from{transform:scale(0) rotate(-20deg);}to{transform:scale(1) rotate(0);} }
+.bug-cell .bug-sprite.decoy{ filter:sepia(0.6) hue-rotate(320deg) brightness(1.1); opacity:0.82; }
+.bug-cell .splat{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:36px;opacity:0;pointer-events:none;
+  animation:splatAnim .5s ease forwards;
+}
+@keyframes splatAnim{ 0%{opacity:1;transform:scale(1.4);}100%{opacity:0;transform:scale(.8);} }
+.bug-cell.penalty-flash{ animation:penaltyFlash .4s ease; }
+@keyframes penaltyFlash{ 0%,100%{background:var(--surface2);}50%{background:rgba(218,30,40,.3);} }
+
+/* ── SCORE SCREEN ── */
+#scoreScreen{ gap:20px; }
+.score-tier{ font-size:64px; }
+.score-headline{ font-size:28px;font-weight:900;color:#fff;letter-spacing:-1px; }
+.score-name{ font-size:16px;color:var(--muted); }
+/* Confetti canvas — sits over everything, pointer-events off */
+#confettiCanvas{
+  position:fixed;inset:0;width:100%;height:100%;
+  pointer-events:none;z-index:999;
+}
+.score-ring{
+  width:150px;height:150px;border-radius:50%;
+  border:6px solid var(--accent);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--surface2);
+  animation:ringPop .5s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes ringPop{ from{transform:scale(.5);opacity:0;}to{transform:scale(1);opacity:1;} }
+.score-ring .sr-num{ font-size:44px;font-weight:900;color:#fff;line-height:1; }
+.score-ring .sr-lbl{ font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted); }
+.score-stats{
+  display:flex;gap:28px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:18px 28px;
+}
+.ss-item{ text-align:center; }
+.ss-val{ font-size:22px;font-weight:800;color:#fff; }
+.ss-lbl{ font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:2px; }
+
+/* ── LEADERBOARD SCREEN ── */
+#lbScreen{ gap:20px; max-width:600px; margin:0 auto; width:100%; }
+#lbScreen h2{ font-size:28px;font-weight:900;color:#fff;letter-spacing:-0.5px; }
+.lb-table{ width:100%; }
+.lb-row{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 16px;border-radius:8px;margin-bottom:6px;
+  background:var(--surface2);border:1px solid var(--border);
+}
+.lb-row.rank-1{ border-color:rgba(241,194,27,.5);background:rgba(241,194,27,.07); }
+.lb-row.rank-2{ border-color:rgba(193,199,205,.3); }
+.lb-row.rank-3{ border-color:rgba(186,78,0,.35); }
+.lb-row.lb-current{ box-shadow:0 0 0 2px var(--accent); }
+.lb-rank{ font-size:13px;font-weight:800;width:36px;text-align:center;flex-shrink:0;color:var(--muted); }
+.lb-rank svg{ display:block;margin:0 auto; }
+.lb-name{ flex:1;font-size:14px;font-weight:700;color:#fff; }
+.lb-company{ font-size:11px;color:var(--muted);margin-right:8px; }
+.lb-score{ font-size:16px;font-weight:900;color:var(--accent2);min-width:60px;text-align:right; }
+.lb-empty{ font-size:14px;color:var(--muted);text-align:center;padding:24px; }
+
+/* ── ADMIN MODAL ── */
+#adminOverlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.75);
+  align-items:center;justify-content:center;
+  z-index:999;
+}
+#adminOverlay.open{ display:flex; }
+.admin-modal{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:36px 32px;width:380px;max-width:95vw;
+}
+.admin-modal h3{ font-size:18px;font-weight:800;color:#fff;margin-bottom:4px; }
+.admin-sub{ font-size:12px;color:var(--muted);margin-bottom:24px; }
+.admin-modal label{
+  display:block;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;
+}
+#adminPwd{
+  width:100%;padding:10px 14px;
+  background:var(--bg);border:1.5px solid var(--border2);
+  border-radius:8px;color:#fff;font-size:14px;
+  outline:none;transition:border-color .2s;margin-bottom:6px;
+}
+#adminPwd:focus{ border-color:var(--accent); }
+.admin-err{ font-size:11px;color:#ff8389;margin-bottom:14px;display:none; }
+.time-opts{ display:flex;gap:8px;margin-bottom:22px; }
+.time-opt{
+  flex:1;padding:10px 0;
+  background:var(--bg);border:2px solid var(--border);
+  border-radius:8px;color:var(--muted);font-size:13px;font-weight:700;
+  cursor:pointer;text-align:center;transition:all .18s;
+}
+.time-opt:hover{ border-color:var(--accent2);color:var(--text); }
+.time-opt.sel{ border-color:var(--accent);background:rgba(15,98,254,.15);color:var(--accent3); }
+.admin-btns{ display:flex;gap:10px;flex-wrap:wrap; }
+
+/* ── TOAST ── */
+#toastContainer{
+  position:fixed;top:20px;right:20px;z-index:9999;
+  display:flex;flex-direction:column;gap:6px;pointer-events:none;
+}
+.toast{
+  padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;
+  animation:toastIn .3s ease, toastOut .35s 1.4s forwards;
+}
+.toast.good{ background:rgba(36,161,72,.95);color:#fff; }
+.toast.bad { background:rgba(218,30,40,.95);color:#fff; }
+.toast.info{ background:rgba(15,98,254,.95);color:#fff; }
+@keyframes toastIn { from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);} }
+@keyframes toastOut{ to{opacity:0;transform:translateX(20px);} }
+
+/* ── BUTTONS ── */
+.btn{
+  padding:12px 26px;border:none;border-radius:8px;
+  font-size:14px;font-weight:700;cursor:pointer;
+  transition:background .18s,transform .1s;letter-spacing:.2px;
+}
+.btn:active{ transform:scale(.97); }
+.btn-primary{ background:var(--accent);color:#fff; }
+.btn-primary:hover{ background:#0353e9; }
+.btn-ghost{
+  background:transparent;border:1.5px solid var(--border2);color:var(--muted);
+}
+.btn-ghost:hover{ border-color:var(--accent2);color:var(--text); }
+.btn-danger{
+  background:rgba(218,30,40,.15);border:1.5px solid var(--red);color:#ff8389;
+}
+.btn-danger:hover{ background:rgba(218,30,40,.3); }
+.btn-sm{ padding:8px 18px;font-size:13px; }
+.btn-row{ display:flex;gap:12px;flex-wrap:wrap;justify-content:center; }
+
+/* ── RESPONSIVE — iPad portrait (≤820px) ── */
+@media(max-width:820px){
+
+  /* Home screen: single column, locked to viewport — no scroll ever */
+  #homeScreen{
+    flex-direction:column;
+    height:calc(100vh - 52px);
+    min-height:unset;
+    overflow:hidden;
+    gap:0;
+    justify-content:flex-start;
+  }
+
+  /* Left content: shrink gaps & padding to fit everything */
+  .home-left{
+    flex:1;
+    max-width:100%;
+    padding:16px 20px 12px;
+    gap:10px;
+    border-right:none;
+    border-bottom:1px solid var(--border);
+    justify-content:flex-start;
+  }
+  .home-title{ font-size:28px;letter-spacing:-1px; }
+  .scenario-box{ padding:10px 14px; }
+  .scenario-box p{ font-size:13px;line-height:1.5; }
+
+  /* Legend: side by side in one row to save vertical space */
+  .bug-legend{ flex-direction:row;gap:10px;align-items:flex-start; }
+  .bl-section{ flex:1; }
+  .bl-heading{ font-size:10px; }
+  .bl-item{ padding:6px 10px; }
+  .bl-emoji{ font-size:18px; }
+  .bl-label{ font-size:11px; }
+
+  .objective-list li{ font-size:12px; }
+  .survey-notice{ padding:8px 12px;font-size:12px; }
+  .gift-badge{ padding:8px 12px;gap:8px; }
+  .gift-badge .gb-icon{ font-size:20px; }
+  .gift-badge .gb-text{ font-size:12px; }
+  .home-cta-btn{
+    align-self:stretch;
+    text-align:center;
+    padding:12px 20px;
+    font-size:15px;
+  }
+
+  /* Leaderboard: compact strip at the bottom — no scroll */
+  .home-right{
+    width:100%;
+    flex-shrink:0;
+    border-top:1px solid var(--border);
+    padding:10px 20px;
+    gap:8px;
+    overflow:hidden;
+    background:var(--surface);
+  }
+  .lb-panel-title{ font-size:11px; }
+  .lb-live-list{ flex-direction:row;gap:6px;overflow:hidden; }
+  .lb-live-row{
+    flex:1;
+    flex-direction:column;
+    align-items:center;
+    padding:6px 8px;
+    gap:2px;
+    min-width:0;
+  }
+  .lb-live-row .lbr-rank{ width:auto;font-size:11px; }
+  .lb-live-row .lbr-name{
+    font-size:11px;
+    text-align:center;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    width:100%;
+  }
+  .lb-live-row .lbr-score{ font-size:13px; }
+  .lb-empty-msg{ padding:4px 0;font-size:12px; }
+  .lb-footer{ display:none; }
+
+  /* Bug grid */
+  .bug-grid{ width:min(460px,90vw);max-width:460px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="brand" id="brandTap">Data <span>Pest Control</span> 🐛</div>
+  <div class="admin-hint">by IBM</div>
+</div>
+
+<!-- GAME HUD -->
+<div class="game-hud" id="gameHud">
+  <div class="hud-stat">
+    <div class="sv" id="hudScore">0</div>
+    <div class="sl">Score</div>
+  </div>
+  <div class="hud-stat">
+    <div class="sv" id="hudCombo">×1</div>
+    <div class="sl">Streak</div>
+  </div>
+  <div class="timer-bar-wrap">
+    <div class="timer-bar-fill" id="timerBarFill"></div>
+  </div>
+  <div class="hud-stat">
+    <div class="sv" id="hudTimer">20</div>
+    <div class="sl">Seconds</div>
+  </div>
+  <div class="hud-stat">
+    <div class="sv" id="hudFixed">0</div>
+    <div class="sl">Squashed</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
+<!-- ═══════════════ HOME ═══════════════ -->
+<div id="homeScreen" class="screen active">
+
+  <!-- LEFT: scenario + CTA -->
+  <div class="home-left">
+    <div class="home-title">Data <span>Pest Control</span> 🐛</div>
+
+    <div class="scenario-box">
+      <p>
+        Bad data bugs have <strong>invaded the pipeline</strong>. Squash as many as you can before the clock hits zero!
+      </p>
+    </div>
+
+    <div class="bug-legend">
+      <div class="bl-section">
+        <div class="bl-heading">✅ Squash these</div>
+        <div class="bl-row">
+          <div class="bl-item good"><span class="bl-emoji">🐛</span><span class="bl-label">Duplicate</span></div>
+          <div class="bl-item good"><span class="bl-emoji">🕷️</span><span class="bl-label">Schema Err</span></div>
+        </div>
+      </div>
+      <div class="bl-section">
+        <div class="bl-heading">❌ Avoid these <span class="bl-penalty">−50 pts</span></div>
+        <div class="bl-row">
+          <div class="bl-item bad"><span class="bl-emoji">⚠️</span><span class="bl-label">Warning</span></div>
+          <div class="bl-item bad"><span class="bl-emoji">❓</span><span class="bl-label">Unknown</span></div>
+          <div class="bl-item bad"><span class="bl-emoji">🔌</span><span class="bl-label">Broken Link</span></div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="objective-list">
+      <li><span class="ol-icon">⏱️</span><span>Beat the clock and see how high you can score!</span></li>
+    </ul>
+
+    <div class="survey-notice">
+      📋 Please complete the survey at our booth before starting the game.
+    </div>
+
+    <div class="gift-badge">
+      <div class="gb-icon">🎁</div>
+      <div class="gb-text">
+        <strong>Complete the booth survey to receive a gift!</strong><br>
+        This game is just for fun — enjoy the challenge!
+      </div>
+    </div>
+
+    <button class="home-cta-btn" id="playNowBtn">🐛 Play Now</button>
+  </div>
+
+  <!-- RIGHT: live leaderboard -->
+  <div class="home-right">
+    <div class="lb-panel-title">
+      <div class="lp-dot"></div>
+      Live Leaderboard
+    </div>
+    <div class="lb-live-list" id="homeLbList">
+      <div class="lb-empty-msg">No scores yet.<br>Be the first to play!</div>
+    </div>
+    <div class="lb-footer">
+      🎁 Complete the booth survey to receive a gift
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ NAME MODAL ═══════════════ -->
+<div id="nameOverlay">
+  <div class="survey-modal" style="max-width:380px;">
+    <h2>🐛 Enter Your Name</h2>
+    <p class="sv-sub">
+      By entering, you confirm you have completed the booth survey.
+      Your name will appear on the leaderboard.
+    </p>
+    <div class="sv-field">
+      <label>Your Name <span class="req">*</span></label>
+      <input type="text" id="playerNameInput" placeholder="e.g. Alex Johnson" maxlength="40" autocomplete="off"/>
+      <div class="sv-err" id="nameInputErr">Please enter your name.</div>
+    </div>
+    <div class="sv-btns">
+      <button class="btn btn-primary" id="nameStartBtn">Let's Exterminate! 🐛</button>
+      <button class="btn btn-ghost btn-sm" id="nameCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ BUG GAME ═══════════════ -->
+<div id="bugScreen" class="screen">
+  <div class="bug-label">Squash every data bug before time runs out!</div>
+  <div class="bug-grid" id="bugGrid"></div>
+</div>
+
+<!-- ═══════════════ SCORE ═══════════════ -->
+<div id="scoreScreen" class="screen">
+  <div class="score-tier" id="scoreTier">🏆</div>
+  <div class="score-headline" id="scoreHeadline">Infestation Cleared!</div>
+  <div class="score-name" id="scoreName"></div>
+  <div class="score-ring">
+    <div class="sr-num" id="scoreNum">0</div>
+    <div class="sr-lbl">Points</div>
+  </div>
+  <div class="score-stats">
+    <div class="ss-item"><div class="ss-val" id="ssSquashed">0</div><div class="ss-lbl">Squashed</div></div>
+    <div class="ss-item"><div class="ss-val" id="ssCombo">×1</div><div class="ss-lbl">Best Streak</div></div>
+    <div class="ss-item"><div class="ss-val" id="ssTime">20s</div><div class="ss-lbl">Time Given</div></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="lbBtn">🏅 See Leaderboard</button>
+    <button class="btn btn-ghost" id="playAgainBtn">Play Again</button>
+  </div>
+</div>
+<!-- Confetti canvas (appended to body by JS when needed) -->
+<canvas id="confettiCanvas" style="display:none;"></canvas>
+
+<!-- ═══════════════ LEADERBOARD SCREEN ═══════════════ -->
+<div id="lbScreen" class="screen">
+  <h2>🏅 Leaderboard</h2>
+  <div id="lbTable" class="lb-table"></div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="lbPlayBtn">Play Again 🐛</button>
+    <button class="btn btn-ghost btn-sm" id="lbHomeBtn">← Home</button>
+  </div>
+</div>
+
+<!-- ═══════════════ ADMIN MODAL ═══════════════ -->
+<div id="adminOverlay">
+  <div class="admin-modal">
+    <h3>⚙️ Admin Panel</h3>
+    <div class="admin-sub">Configure game settings.</div>
+    <div id="adminLoginSection">
+      <label>Admin Password</label>
+      <input type="password" id="adminPwd" placeholder="••••••••"/>
+      <div class="admin-err" id="adminErr">Incorrect password.</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" id="unlockBtn">Unlock</button>
+        <button class="btn btn-ghost btn-sm" id="cancelAdminBtn">Cancel</button>
+      </div>
+    </div>
+    <div id="adminSettings" style="display:none;">
+      <label>Game Duration</label>
+      <div class="time-opts">
+        <div class="time-opt sel" data-val="20">20s</div>
+        <div class="time-opt" data-val="30">30s</div>
+        <div class="time-opt" data-val="45">45s</div>
+      </div>
+      <div class="admin-btns">
+        <button class="btn btn-danger btn-sm" id="resetLbBtn">🗑 Reset Leaderboard</button>
+        <button class="btn btn-ghost btn-sm" id="closeAdminBtn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const ADMIN_PASS = 'admin123';
+const LB_KEY     = 'dpc_lb_v1';
+let   gameTime   = 20;
+
+// ── AUDIO ───────────────────────────────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
+
+// Bright win ding: punchy ascending sine chord
+function playSquash() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    // Layer 1 – punchy "pop" sweep: sine climbing from 300 → 620 Hz
+    const pop  = ctx.createOscillator();
+    const popG = ctx.createGain();
+    pop.connect(popG); popG.connect(ctx.destination);
+    pop.type = 'sine';
+    pop.frequency.setValueAtTime(300, now);
+    pop.frequency.exponentialRampToValueAtTime(620, now + 0.08);
+    popG.gain.setValueAtTime(0.28, now);
+    popG.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    pop.start(now); pop.stop(now + 0.19);
+    // Layer 2 – bright overtone "ding" at 880 Hz (A5), soft triangle
+    const ding  = ctx.createOscillator();
+    const dingG = ctx.createGain();
+    ding.connect(dingG); dingG.connect(ctx.destination);
+    ding.type = 'triangle';
+    ding.frequency.setValueAtTime(880, now + 0.04);
+    dingG.gain.setValueAtTime(0.0,  now + 0.04);
+    dingG.gain.linearRampToValueAtTime(0.2, now + 0.07);
+    dingG.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    ding.start(now + 0.04); ding.stop(now + 0.36);
+  } catch {}
+}
+
+// Low buzzer: descending noise burst
+function playMisclick() {
+  try {
+    const ctx  = getAudioCtx();
+    const now  = ctx.currentTime;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.22);
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+    osc.start(now); osc.stop(now + 0.25);
+  } catch {}
+}
+
+// Ascending fanfare: three rising notes
+function playTopFive() {
+  try {
+    const ctx  = getAudioCtx();
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((freq, i) => {
+      const t    = ctx.currentTime + i * 0.13;
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0, t);
+      gain.gain.linearRampToValueAtTime(0.22, t + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc.start(t); osc.stop(t + 0.22);
+    });
+  } catch {}
+}
+
+// ── STATE ───────────────────────────────────────────────
+let playerName  = '';
+let score       = 0;
+let combo       = 1;
+let bestCombo   = 1;
+let fixedCount  = 0;
+let timeLeft    = 30;
+let timerId     = null;
+let bugState    = [];
+let bugSpawnId  = null;
+
+// ── SCREEN MANAGER ──────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('gameHud').classList.toggle('visible', id === 'bugScreen');
+  window.scrollTo(0,0);
+}
+
+// ── WIRE BUTTONS ────────────────────────────────────────
+document.getElementById('playNowBtn').addEventListener('click', openNameModal);
+document.getElementById('nameStartBtn').addEventListener('click', submitName);
+document.getElementById('nameCancelBtn').addEventListener('click', closeNameModal);
+document.getElementById('playerNameInput').addEventListener('keydown', e => { if(e.key==='Enter') submitName(); });
+document.getElementById('lbBtn').addEventListener('click', goLeaderboard);
+document.getElementById('playAgainBtn').addEventListener('click', () => showScreen('homeScreen'));
+document.getElementById('lbPlayBtn').addEventListener('click', () => { showScreen('homeScreen'); });
+document.getElementById('lbHomeBtn').addEventListener('click', () => showScreen('homeScreen'));
+document.getElementById('unlockBtn').addEventListener('click', adminLogin);
+document.getElementById('cancelAdminBtn').addEventListener('click', closeAdmin);
+document.getElementById('closeAdminBtn').addEventListener('click', closeAdmin);
+document.getElementById('resetLbBtn').addEventListener('click', resetLeaderboard);
+document.querySelectorAll('.time-opt').forEach(btn =>
+  btn.addEventListener('click', () => setAdminTime(btn))
+);
+document.getElementById('adminPwd').addEventListener('keydown', e => { if(e.key==='Enter') adminLogin(); });
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'Z') openAdmin();
+});
+
+// ── BRAND TAP / LONG-PRESS (admin access) ────────────────
+let _brandTaps = 0, _brandTapTimer = null;
+let _longPressTimer = null;
+
+const _brandEl = document.getElementById('brandTap');
+
+// Desktop: 5 rapid clicks
+_brandEl.addEventListener('click', () => {
+  _brandTaps++;
+  clearTimeout(_brandTapTimer);
+  if (_brandTaps >= 5) { _brandTaps = 0; openAdmin(); return; }
+  _brandTapTimer = setTimeout(() => { _brandTaps = 0; }, 1500);
+});
+
+// Mobile: 3-second long press
+_brandEl.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  _longPressTimer = setTimeout(() => {
+    _longPressTimer = null;
+    openAdmin();
+  }, 3000);
+}, { passive: false });
+
+_brandEl.addEventListener('touchend', () => {
+  clearTimeout(_longPressTimer);
+  _longPressTimer = null;
+});
+
+_brandEl.addEventListener('touchmove', () => {
+  clearTimeout(_longPressTimer);
+  _longPressTimer = null;
+});
+
+// ── NAME MODAL ───────────────────────────────────────────
+function openNameModal() {
+  document.getElementById('nameInputErr').style.display = 'none';
+  document.getElementById('playerNameInput').value = '';
+  document.getElementById('nameOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('playerNameInput').focus(), 100);
+}
+function closeNameModal() {
+  document.getElementById('nameOverlay').classList.remove('open');
+}
+function submitName() {
+  const name = document.getElementById('playerNameInput').value.trim();
+  if (!name) { document.getElementById('nameInputErr').style.display = 'block'; return; }
+  playerName = name;
+  closeNameModal();
+  startBugMode();
+}
+
+// ── TIMER ───────────────────────────────────────────────
+function startTimer() {
+  timeLeft = gameTime;
+  updateHUD();
+  if (timerId) clearInterval(timerId);
+  timerId = setInterval(() => {
+    timeLeft--;
+    updateHUD();
+    if (timeLeft <= 0) { clearInterval(timerId); endGame(); }
+  }, 1000);
+}
+
+function updateHUD() {
+  document.getElementById('hudScore').textContent = score;
+  document.getElementById('hudCombo').textContent = '×' + combo;
+  document.getElementById('hudTimer').textContent = timeLeft;
+  document.getElementById('hudFixed').textContent = fixedCount;
+  const pct  = (timeLeft / gameTime) * 100;
+  const fill = document.getElementById('timerBarFill');
+  fill.style.width      = pct + '%';
+  fill.style.background = timeLeft <= 7 ? '#da1e28' : timeLeft <= 14 ? '#f1c21b' : '#0f62fe';
+  document.getElementById('hudTimer').style.color = timeLeft <= 7 ? '#ff8389' : '#fff';
+}
+
+function addScore(pts) {
+  const earned = pts * combo;
+  score    += earned;
+  fixedCount++;
+  bestCombo = Math.max(bestCombo, combo);   // record before incrementing
+  combo     = Math.min(combo + 1, 8);       // streak grows after each squash
+  updateHUD();
+  return earned;
+}
+
+// ── WHACK-A-BUG ─────────────────────────────────────────
+// Real targets — squash these for points
+const BUGS = [
+  { emoji:'🐛', label:'Duplicate',  pts:100, type:'bug' },
+  { emoji:'🕷️', label:'Schema Err', pts:130, type:'bug' },
+];
+// Decoys — tapping these counts as a misclick (-50 pts)
+const DECOYS = [
+  { emoji:'⚠️', label:'Warning',    type:'decoy' },
+  { emoji:'❓', label:'Unknown',    type:'decoy' },
+  { emoji:'🔌', label:'Broken Link',type:'decoy' },
+];
+const GRID_SIZE = 20;
+
+function startBugMode() {
+  score=0; combo=1; bestCombo=1; fixedCount=0;
+  bugState = new Array(GRID_SIZE).fill(null);
+  if (bugSpawnId) clearTimeout(bugSpawnId);
+  buildBugGrid();
+  showScreen('bugScreen');
+  startTimer();
+  scheduleBugSpawn();
+}
+
+function buildBugGrid() {
+  const grid = document.getElementById('bugGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < GRID_SIZE; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'bug-cell';
+    cell.id = 'bc-' + i;
+    cell.addEventListener('click', () => {
+      if (bugState[i]) whackCell(i); else misclick(i);
+    });
+    grid.appendChild(cell);
+  }
+}
+
+function scheduleBugSpawn() {
+  if (bugSpawnId) clearTimeout(bugSpawnId);
+  // Starts at 600ms, ramps down to 220ms as time passes
+  const elapsed = gameTime - timeLeft;
+  const delay   = Math.max(220, 600 - elapsed * 14);
+  bugSpawnId    = setTimeout(spawnBug, delay);
+}
+
+function spawnBug() {
+  if (timeLeft <= 0) return;
+  const empty = bugState.reduce((a,v,i) => { if(v===null) a.push(i); return a; }, []);
+  if (empty.length === 0) { scheduleBugSpawn(); return; }
+
+  // Spawn 1 bug early on, up to 3 simultaneously as the game progresses
+  const elapsed   = gameTime - timeLeft;
+  const spawnCount = elapsed < 5 ? 1 : elapsed < 15 ? 2 : 3;
+  const toSpawn   = Math.min(spawnCount, empty.length);
+
+  // Shuffle empty cells and pick first N
+  const shuffled = empty.sort(() => Math.random() - 0.5);
+  for (let s = 0; s < toSpawn; s++) {
+    const idx      = shuffled[s];
+    // ~35% chance of spawning a decoy once 5s have elapsed
+    const useDecoy = elapsed >= 5 && Math.random() < 0.35;
+    const pool     = useDecoy ? DECOYS : BUGS;
+    const item     = pool[Math.floor(Math.random() * pool.length)];
+    // Unique token prevents stale missedBug timeouts firing on re-used cells
+    const token    = Date.now() + Math.random();
+    bugState[idx]  = { ...item, token };
+    const cell     = document.getElementById('bc-' + idx);
+    cell.innerHTML = `<div class="bug-sprite${item.type === 'decoy' ? ' decoy' : ''}">${item.emoji}</div>`;
+    cell.classList.remove('penalty-flash');
+    const lifespan = Math.max(800, 2200 - fixedCount * 25);
+    setTimeout(() => missedBug(idx, token), lifespan);
+  }
+  scheduleBugSpawn();
+}
+
+function whackCell(idx) {
+  if (timeLeft <= 0) return;
+  const item = bugState[idx];
+  if (!item) return;
+  bugState[idx] = null;
+  const cell = document.getElementById('bc-' + idx);
+  if (item.type === 'decoy') {
+    // Tapping a decoy = penalty: deduct points, reset streak, flash cell
+    cell.innerHTML = '';
+    score = Math.max(0, score - 50);
+    combo = 1;
+    updateHUD();
+    playMisclick();
+    cell.classList.remove('penalty-flash');
+    void cell.offsetWidth;
+    cell.classList.add('penalty-flash');
+    toast(`-50  That's a ${item.label} — not a bug!`, 'bad');
+    return;
+  }
+  cell.innerHTML = `<div class="splat">💥</div>`;
+  playSquash();
+  const earned = addScore(item.pts);
+  toast(`+${earned} ${item.label} squashed!`, 'good');
+}
+
+function missedBug(idx, token) {
+  // Token mismatch means this cell was already whacked or re-spawned — ignore
+  if (!bugState[idx] || bugState[idx].token !== token || timeLeft <= 0) return;
+  bugState[idx] = null;
+  const cell = document.getElementById('bc-' + idx);
+  cell.innerHTML = '';
+  cell.classList.add('penalty-flash');
+  combo = 1;
+  updateHUD();
+}
+
+function misclick(idx) {
+  // Player tapped an empty cell — penalise
+  if (timeLeft <= 0) return;
+  score = Math.max(0, score - 50);
+  combo = 1;
+  updateHUD();
+  playMisclick();
+  toast('-50  Nothing there!', 'bad');
+  // Flash the tapped cell red
+  const cell = document.getElementById('bc-' + idx);
+  if (cell) {
+    cell.classList.remove('penalty-flash');
+    // Force reflow so re-adding the class re-triggers the animation
+    void cell.offsetWidth;
+    cell.classList.add('penalty-flash');
+  }
+}
+
+// ── END GAME ────────────────────────────────────────────
+function endGame() {
+  if (timerId)   clearInterval(timerId);
+  if (bugSpawnId) clearTimeout(bugSpawnId);
+
+  const tiers = [
+    {min:2000,emoji:'🏆',label:'Legendary Exterminator'},
+    {min:1200,emoji:'🥇',label:'Expert Exterminator'},
+    {min:600, emoji:'🥈',label:'Senior Exterminator'},
+    {min:200, emoji:'🥉',label:'Junior Exterminator'},
+    {min:0,   emoji:'🐛',label:'Bug Bait'},
+  ];
+  const tier = tiers.find(t => score >= t.min);
+
+  document.getElementById('scoreTier').textContent     = tier.emoji;
+  document.getElementById('scoreHeadline').textContent = tier.label;
+  document.getElementById('scoreName').textContent     = playerName;
+  document.getElementById('scoreNum').textContent      = score;
+  document.getElementById('ssSquashed').textContent    = fixedCount;
+  document.getElementById('ssCombo').textContent       = '×' + bestCombo;
+  document.getElementById('ssTime').textContent        = gameTime + 's';
+
+  const rank = saveScore();
+  refreshHomeLb();
+  showScreen('scoreScreen');
+
+  // Launch confetti for any top-5 finish (purely celebratory)
+  if (rank !== -1 && rank < 5) {
+    launchConfetti();
+  }
+}
+
+// ── LEADERBOARD ─────────────────────────────────────────
+function saveScore() {
+  let lb = getLB();
+  // Remove any existing entry for this player (keep only their best run)
+  const nameLower = playerName.trim().toLowerCase();
+  const existing  = lb.findIndex(e => e.name.trim().toLowerCase() === nameLower);
+  if (existing !== -1) {
+    if (score > lb[existing].score) lb.splice(existing, 1);
+    else { refreshHomeLb(); return -1; } // old score was better
+  }
+  lb.push({ name: playerName, score });
+  lb.sort((a,b) => b.score - a.score);
+  lb = lb.slice(0, 10);
+  localStorage.setItem(LB_KEY, JSON.stringify(lb));
+  const rank = lb.findIndex(e => e.name.trim().toLowerCase() === nameLower);
+  if (rank !== -1 && rank < 5) playTopFive();
+  return rank; // 0-based rank, or -1 if not saved
+}
+
+function getLB() {
+  try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch { return []; }
+}
+
+function goLeaderboard() {
+  renderLbScreen();
+  showScreen('lbScreen');
+}
+
+// SVG star with rank number centred — gold tint shifts by rank
+function rankBadge(n) {
+  const colors = ['#f1c21b','#c1c7cd','#ba4e00','#4589ff','#6929c4'];
+  const c = colors[n - 1];
+  return `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="14,2 17.5,10.5 26.5,11 20,17 22,26 14,21.5 6,26 8,17 1.5,11 10.5,10.5"
+      fill="${c}" opacity="0.9"/>
+    <text x="14" y="18" text-anchor="middle" font-size="9" font-weight="900"
+      font-family="-apple-system,Segoe UI,sans-serif" fill="#fff">${n}</text>
+  </svg>`;
+}
+
+function renderLbScreen() {
+  const lb  = getLB();
+  const box = document.getElementById('lbTable');
+  if (!lb.length) { box.innerHTML = '<div class="lb-empty">No scores yet. Be the first!</div>'; return; }
+  const nameLower = playerName.trim().toLowerCase();
+  box.innerHTML = lb.map((e, i) => `
+    <div class="lb-row ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''} ${e.name.trim().toLowerCase()===nameLower&&e.score===score?'lb-current':''}">
+      <div class="lb-rank">${i < 5 ? rankBadge(i + 1) : i + 1}</div>
+      <div class="lb-name">${esc(e.name)}</div>
+      <div class="lb-score">${e.score.toLocaleString()}</div>
+    </div>`).join('');
+}
+
+function refreshHomeLb() {
+  const lb   = getLB().slice(0, 3);
+  const list = document.getElementById('homeLbList');
+  if (!lb.length) {
+    list.innerHTML = '<div class="lb-empty-msg">No scores yet.<br>Be the first to play!</div>';
+    return;
+  }
+  list.innerHTML = lb.map((e, i) => `
+    <div class="lb-live-row ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">
+      <div class="lbr-rank">${i < 5 ? rankBadge(i + 1) : i + 1}</div>
+      <div class="lbr-name">${esc(e.name)}</div>
+      <div class="lbr-score">${e.score.toLocaleString()}</div>
+    </div>`).join('');
+}
+
+// ── ADMIN ───────────────────────────────────────────────
+function openAdmin() {
+  document.getElementById('adminLoginSection').style.display = '';
+  document.getElementById('adminSettings').style.display    = 'none';
+  document.getElementById('adminPwd').value = '';
+  document.getElementById('adminErr').style.display = 'none';
+  document.getElementById('adminOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('adminPwd').focus(), 100);
+}
+function closeAdmin() {
+  document.getElementById('adminOverlay').classList.remove('open');
+}
+function adminLogin() {
+  if (document.getElementById('adminPwd').value !== ADMIN_PASS) {
+    document.getElementById('adminErr').style.display = 'block'; return;
+  }
+  document.getElementById('adminErr').style.display = 'none';
+  document.getElementById('adminLoginSection').style.display = 'none';
+  document.getElementById('adminSettings').style.display = 'block';
+  document.querySelectorAll('.time-opt').forEach(b =>
+    b.classList.toggle('sel', parseInt(b.dataset.val) === gameTime));
+}
+function setAdminTime(el) {
+  gameTime = parseInt(el.dataset.val);
+  document.querySelectorAll('.time-opt').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  toast('Duration set to ' + gameTime + 's', 'info');
+}
+function resetLeaderboard() {
+  if (confirm('Reset all leaderboard scores?')) {
+    localStorage.removeItem(LB_KEY);
+    refreshHomeLb();
+    closeAdmin();
+    toast('Leaderboard cleared.', 'info');
+  }
+}
+
+// ── TOAST & UTILS ────────────────────────────────────────
+function toast(msg, type='info') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(() => t.remove(), 1800);
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── CONFETTI ────────────────────────────────────────────
+function launchConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = 'block';
+
+  // IBM-palette colours + gold
+  const COLORS = ['#0f62fe','#4589ff','#6929c4','#f1c21b','#ffffff','#42be65','#ff832b'];
+  const TOTAL  = 120;
+  const parts  = Array.from({ length: TOTAL }, () => ({
+    x:   Math.random() * canvas.width,
+    y:   Math.random() * -canvas.height * 0.5,   // start above viewport
+    w:   6 + Math.random() * 8,
+    h:   3 + Math.random() * 5,
+    r:   Math.random() * Math.PI * 2,
+    dr:  (Math.random() - 0.5) * 0.18,
+    vx:  (Math.random() - 0.5) * 2.5,
+    vy:  2.5 + Math.random() * 3.5,
+    col: COLORS[Math.floor(Math.random() * COLORS.length)],
+    life:1.0,
+    decay: 0.004 + Math.random() * 0.003,
+  }));
+
+  const startTime = performance.now();
+  const DURATION  = 3200; // ms
+
+  function frame(now) {
+    const elapsed = now - startTime;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const p of parts) {
+      p.x  += p.vx;
+      p.y  += p.vy;
+      p.r  += p.dr;
+      p.life = Math.max(0, 1 - elapsed / DURATION);
+
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.col;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+
+    if (elapsed < DURATION) {
+      requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'none';
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+// ── INIT ────────────────────────────────────────────────
+refreshHomeLb();
+</script>
+</body>
+</html>
